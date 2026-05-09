@@ -1,0 +1,58 @@
+{
+  "entities": {
+    "Note": {
+      "title": "Note",
+      "description": "A notebook entry",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "content", "userId", "createdAt", "updatedAt"]
+    },
+    "Todo": {
+      "title": "Todo",
+      "description": "A task in the todo list",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "text": { "type": "string" },
+        "completed": { "type": "boolean" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["text", "completed", "userId", "createdAt"]
+    },
+    "UserSettings": {
+      "title": "UserSettings",
+      "description": "User preferences",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "theme": { "type": "string" },
+        "volume": { "type": "number" },
+        "pomodoroWorkMinutes": { "type": "number" },
+        "pomodoroBreakMinutes": { "type": "number" }
+      },
+      "required": ["userId"]
+    }
+  },
+  "firestore": {
+    "notes": {
+      "schema": "Note",
+      "description": "Collection of user notes"
+    },
+    "todos": {
+      "schema": "Todo",
+      "description": "Collection of user todo items"
+    },
+    "settings": {
+      "schema": "UserSettings",
+      "description": "User specific settings"
+    }
+  }
+}

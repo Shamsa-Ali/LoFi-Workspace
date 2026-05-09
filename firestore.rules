@@ -1,0 +1,75 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    match /notes/{noteId} {
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isSignedIn() && isOwner(existing().userId);
+      allow create: if isSignedIn() && 
+                    incoming().keys().hasAll(['title', 'content', 'userId', 'createdAt', 'updatedAt']) &&
+                    incoming().keys().size() == 5 &&
+                    incoming().userId == request.auth.uid &&
+                    incoming().createdAt == request.time &&
+                    incoming().updatedAt == request.time &&
+                    incoming().title is string && incoming().title.size() <= 200 &&
+                    incoming().content is string && incoming().content.size() <= 10000;
+      allow update: if isSignedIn() && isOwner(existing().userId) &&
+                    incoming().userId == existing().userId &&
+                    incoming().createdAt == existing().createdAt &&
+                    incoming().updatedAt == request.time &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['title', 'content', 'updatedAt']) &&
+                    incoming().title is string && incoming().title.size() <= 200 &&
+                    incoming().content is string && incoming().content.size() <= 10000;
+      allow delete: if isSignedIn() && isOwner(existing().userId);
+    }
+
+    match /todos/{todoId} {
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isSignedIn() && isOwner(existing().userId);
+      allow create: if isSignedIn() &&
+                    incoming().keys().hasAll(['text', 'completed', 'userId', 'createdAt']) &&
+                    incoming().keys().size() == 4 &&
+                    incoming().userId == request.auth.uid &&
+                    incoming().createdAt == request.time &&
+                    incoming().text is string && incoming().text.size() <= 500 &&
+                    incoming().completed is bool;
+      allow update: if isSignedIn() && isOwner(existing().userId) &&
+                    incoming().userId == existing().userId &&
+                    incoming().createdAt == existing().createdAt &&
+                    incoming().diff(existing()).affectedKeys().hasAny(['text', 'completed']) &&
+                    (incoming().text is string && incoming().text.size() <= 500) &&
+                    incoming().completed is bool;
+      allow delete: if isSignedIn() && isOwner(existing().userId);
+    }
+
+    match /settings/{userId} {
+      allow get: if isSignedIn() && isOwner(userId);
+      allow write: if isSignedIn() && isOwner(userId) &&
+                   incoming().userId == request.auth.uid &&
+                   incoming().theme is string &&
+                   incoming().volume is number &&
+                   incoming().pomodoroWorkMinutes is number &&
+                   incoming().pomodoroBreakMinutes is number;
+    }
+  }
+}

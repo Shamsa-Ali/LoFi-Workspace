@@ -1,0 +1,56 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Playfair Display", serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* Natural Tones Palette */
+  --color-natural-bg: #1a1412;
+  --color-natural-paper: #FDFCF0;
+  --color-natural-border: #d4cfbc;
+  --color-natural-forest: #4A5D23;
+  --color-natural-wood: #8B5E3C;
+  --color-natural-text: #423a33;
+  --color-natural-text-light: #5c5249;
+
+  --radius-sm: 0.3rem;
+  --radius-md: 0.6rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+}
+
+@layer base {
+  body {
+    @apply bg-natural-bg text-natural-text antialiased overflow-x-hidden;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+}
+
+/* Notebook Lined Paper Effect */
+.lined-paper {
+  background-image: linear-gradient(#e6e2d1 1px, transparent 1px);
+  background-size: 100% 2.5rem;
+  background-position: 0 4.5rem;
+}
+
+/* Custom Markdown Styles for Natural Tones */
+.markdown-body {
+  font-family: var(--font-serif);
+}
+
+.markdown-body h1 { @apply text-3xl font-bold mb-6 mt-8 text-natural-wood tracking-tight; }
+.markdown-body h2 { @apply text-2xl font-bold mb-4 mt-6 text-natural-wood tracking-tight; }
+.markdown-body p { @apply mb-4 leading-[2.5rem] text-natural-text-light text-lg; }
+.markdown-body ul { @apply list-disc list-inside mb-6 space-y-2; }
+.markdown-body blockquote { @apply border-l-4 border-natural-wood/30 pl-6 py-2 italic mb-6 bg-natural-wood/5 rounded-r-lg; }
+
+/* Thick Shadow Utility */
+.shadow-natural {
+  @apply shadow-xl border-b-4 border-r-4 border-natural-border;
+}
+
+.shadow-natural-forest {
+  @apply shadow-xl border-b-4 border-r-4 border-[#323f18];
+}

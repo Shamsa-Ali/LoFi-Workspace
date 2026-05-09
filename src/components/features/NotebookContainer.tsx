@@ -24,33 +24,54 @@ export function NotebookContainer() {
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!auth.currentUser) return;
-
-    const q = query(
-      collection(db, "notes"),
-      where("userId", "==", auth.currentUser.uid),
-      orderBy("updatedAt", "desc")
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const notesList = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Note[];
-      setNotes(notesList);
-      setLoading(false);
-      
-      if (selectedNote) {
-        const updated = notesList.find(n => n.id === selectedNote.id);
-        if (updated) setSelectedNote(updated);
+    const unsubscribeAuth = auth.onAuthStateChanged((user) => {
+      if (!user) {
+        setNotes([]);
+        setSelectedNote(null);
+        setLoading(false);
+        return;
       }
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, "notes");
+
+      setError(null);
+      setLoading(true);
+      const q = query(
+        collection(db, "notes"),
+        where("userId", "==", user.uid)
+      );
+
+      const unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
+        const notesList = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as Note[];
+        
+        // Sort in memory to avoid needing a composite index
+        const sortedNotes = notesList.sort((a, b) => {
+          const timeA = a.updatedAt?.seconds || a.updatedAt?.toMillis?.() || 0;
+          const timeB = b.updatedAt?.seconds || b.updatedAt?.toMillis?.() || 0;
+          return timeB - timeA;
+        });
+
+        setNotes(sortedNotes);
+        setLoading(false);
+        
+        if (selectedNote) {
+          const updated = sortedNotes.find(n => n.id === selectedNote.id);
+          if (updated) setSelectedNote(updated);
+        }
+      }, (err) => {
+        console.error(err);
+        setError("Notes could not be synced.");
+        setLoading(false);
+      });
+
+      return () => unsubscribeSnapshot();
     });
 
-    return () => unsubscribe();
+    return () => unsubscribeAuth();
   }, []);
 
   const handleCreateNote = async () => {
@@ -130,30 +151,42 @@ export function NotebookContainer() {
         </div>
         <ScrollArea className="flex-1">
           <div className="p-2 space-y-1">
-            {notes.map(note => (
-              <div
-                key={note.id}
-                onClick={() => {
-                  setSelectedNote(note);
-                  setIsEditing(false);
-                }}
-                className={cn(
-                  "p-2 rounded-lg cursor-pointer group transition-all relative border border-transparent",
-                  selectedNote?.id === note.id ? "bg-[#e6e2d1] border-[#d4cfbc]" : "hover:bg-[#e6e2d1]/50"
-                )}
-              >
-                <p className="font-bold text-xs truncate pr-6 text-[#5c5249]">{note.title}</p>
-                <p className="text-[9px] text-[#8B5E3C] mt-0.5 italic">
-                  {note.content.substring(0, 30) || "No content yet..."}
-                </p>
-                <button
-                  onClick={(e) => handleDelete(note.id, e)}
-                  className="absolute right-2 top-2.5 opacity-0 group-hover:opacity-100 hover:text-red-700 transition-all"
-                >
-                  <Trash2 className="w-3 h-3" />
-                </button>
+            {loading ? (
+              <div className="space-y-2 p-2">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="h-12 w-full bg-[#8B5E3C]/5 animate-pulse rounded-lg" />
+                ))}
               </div>
-            ))}
+            ) : error ? (
+              <p className="text-[9px] text-red-500 italic p-4 text-center">
+                {error}
+              </p>
+            ) : (
+              notes.map(note => (
+                <div
+                  key={note.id}
+                  onClick={() => {
+                    setSelectedNote(note);
+                    setIsEditing(false);
+                  }}
+                  className={cn(
+                    "p-2 rounded-lg cursor-pointer group transition-all relative border border-transparent",
+                    selectedNote?.id === note.id ? "bg-[#e6e2d1] border-[#d4cfbc]" : "hover:bg-[#e6e2d1]/50"
+                  )}
+                >
+                  <p className="font-bold text-xs truncate pr-6 text-[#5c5249]">{note.title}</p>
+                  <p className="text-[9px] text-[#8B5E3C] mt-0.5 italic">
+                    {note.content.substring(0, 30) || "No content yet..."}
+                  </p>
+                  <button
+                    onClick={(e) => handleDelete(note.id, e)}
+                    className="absolute right-2 top-2.5 opacity-0 group-hover:opacity-100 hover:text-red-700 transition-all"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+              ))
+            )}
           </div>
         </ScrollArea>
       </div>

@@ -13,34 +13,54 @@ interface Todo {
   text: string;
   completed: boolean;
   userId: string;
+  createdAt: any;
 }
 
 export function TodoContainer() {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [newTodo, setNewTodo] = useState("");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!auth.currentUser) return;
+    const unsubscribeAuth = auth.onAuthStateChanged((user) => {
+      if (!user) {
+        setTodos([]);
+        setLoading(false);
+        return;
+      }
 
-    const q = query(
-      collection(db, "todos"),
-      where("userId", "==", auth.currentUser.uid),
-      orderBy("createdAt", "desc")
-    );
+      setError(null);
+      setLoading(true);
+      const q = query(
+        collection(db, "todos"),
+        where("userId", "==", user.uid)
+      );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const todoList = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Todo[];
-      setTodos(todoList);
-      setLoading(false);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, "todos");
+      const unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
+        const todoList = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as Todo[];
+        
+        const sortedTodos = todoList.sort((a, b) => {
+          const timeA = a.createdAt?.seconds || a.createdAt?.toMillis?.() || 0;
+          const timeB = b.createdAt?.seconds || b.createdAt?.toMillis?.() || 0;
+          return timeB - timeA;
+        });
+        
+        setTodos(sortedTodos);
+        setLoading(false);
+      }, (err) => {
+        console.error(err);
+        setError("Failed to sync your todos. Please try again later.");
+        setLoading(false);
+      });
+
+      return () => unsubscribeSnapshot();
     });
 
-    return () => unsubscribe();
+    return () => unsubscribeAuth();
   }, []);
 
   const addTodo = async (e: React.FormEvent) => {
@@ -86,38 +106,52 @@ export function TodoContainer() {
       <CardContent className="flex-1 flex flex-col gap-4 overflow-hidden">
         <ScrollArea className="flex-1">
           <div className="flex flex-col gap-3 pr-4">
-            {todos.map((todo) => (
-              <div
-                key={todo.id}
-                className="group flex items-start gap-4 transition-all"
-              >
-                <button
-                  onClick={() => toggleTodo(todo)}
-                  className="mt-1 w-4 h-4 rounded border-2 border-[#8B5E3C]/30 flex items-center justify-center transition-colors"
-                >
-                  {todo.completed && (
-                    <div className="w-2 h-2 bg-[#8B5E3C] rounded-sm" />
-                  )}
-                </button>
-                <span className={cn(
-                  "flex-1 text-sm transition-all leading-tight pt-0.5",
-                  todo.completed && "text-[#8B5E3C]/40 line-through"
-                )}>
-                  {todo.text}
-                </span>
-                <button
-                  onClick={() => deleteTodo(todo.id)}
-                  className="opacity-0 group-hover:opacity-100 text-[#8B5E3C]/40 hover:text-red-700 transition-all pt-0.5"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+            {loading ? (
+              <div className="flex flex-col gap-3">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="h-6 w-full bg-[#8B5E3C]/5 animate-pulse rounded" />
+                ))}
               </div>
-            ))}
-            {!loading && todos.length === 0 && (
-              <div className="flex flex-col items-center gap-4 mt-8 opacity-20">
-                <CheckCircle2 className="w-12 h-12" />
-                <p className="text-sm font-serif italic">Your desk is clear</p>
-              </div>
+            ) : error ? (
+              <p className="text-[10px] text-red-500 italic p-4 text-center bg-red-500/5 rounded-lg border border-red-500/10">
+                {error}
+              </p>
+            ) : (
+              <>
+                {todos.map((todo) => (
+                  <div
+                    key={todo.id}
+                    className="group flex items-start gap-4 transition-all"
+                  >
+                    <button
+                      onClick={() => toggleTodo(todo)}
+                      className="mt-1 w-4 h-4 rounded border-2 border-[#8B5E3C]/30 flex items-center justify-center transition-colors"
+                    >
+                      {todo.completed && (
+                        <div className="w-2 h-2 bg-[#8B5E3C] rounded-sm" />
+                      )}
+                    </button>
+                    <span className={cn(
+                      "flex-1 text-sm transition-all leading-tight pt-0.5",
+                      todo.completed && "text-[#8B5E3C]/40 line-through"
+                    )}>
+                      {todo.text}
+                    </span>
+                    <button
+                      onClick={() => deleteTodo(todo.id)}
+                      className="opacity-0 group-hover:opacity-100 text-[#8B5E3C]/40 hover:text-red-700 transition-all pt-0.5"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+                {todos.length === 0 && (
+                  <div className="flex flex-col items-center gap-4 mt-8 opacity-20">
+                    <CheckCircle2 className="w-12 h-12" />
+                    <p className="text-sm font-serif italic">Your desk is clear</p>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </ScrollArea>
